@@ -1,0 +1,104 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>THE FINALS Private Watchboard</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <h1>THE FINALS Private Watchboard</h1>
+        <p class="sub">전체 핵 의심/확정 사용자 모니터링</p>
+      </div>
+      <div class="topbar-actions">
+        <div class="admin-pill" id="adminPill">Admin: OFF</div>
+        <button id="syncNowBtn" class="ghost">업데이트 동기화</button>
+        <button id="authBtn">관리자 로그인</button>
+      </div>
+    </header>
+
+    <section class="status-strip">
+      <span>Last leaderboard update by Embark: <strong id="lastUpdateText">-</strong></span>
+      <span>Next expected update: <strong id="nextUpdateText">-</strong></span>
+      <span>Source: <strong id="apiSourceText">-</strong></span>
+      <span class="badge" id="freshBadge">-</span>
+    </section>
+
+    <section class="stats-grid" id="statsGrid"></section>
+
+    <section class="controls">
+      <div class="filters">
+        <select id="statusFilter">
+          <option value="all">핵판정: 전체</option>
+          <option value="suspected">핵의심</option>
+          <option value="teaming">티밍</option>
+          <option value="confirmed">핵확정</option>
+        </select>
+        <select id="riskFilter">
+          <option value="all">위험도: 전체</option>
+          <option value="70">70 이상</option>
+          <option value="50">50 이상</option>
+          <option value="30">30 이상</option>
+        </select>
+        <select id="recentFilter">
+          <option value="all">마지막플레이: 전체</option>
+          <option value="1">24시간 이내</option>
+          <option value="3">3일 이내</option>
+          <option value="7">7일 이내</option>
+        </select>
+        <button id="resetFilters" class="ghost">초기화</button>
+      </div>
+      <div class="quick-search">
+        <input id="quickSearch" type="text" placeholder="닉/ID 빠른 찾기" />
+      </div>
+    </section>
+
+    <section class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>핵판정</th>
+            <th>위험점수</th>
+            <th>플레이어</th>
+            <th>리그</th>
+            <th>랭크</th>
+            <th>포인트</th>
+            <th>24h 포인트변동</th>
+            <th>태그</th>
+            <th>마지막플레이</th>
+            <th>삭제</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div id="emptyState" class="empty hidden">조건에 맞는 데이터가 없음</div>
+    </section>
+
+    <section class="admin-panel" id="adminPanel">
+      <details open>
+        <summary>Admin 전용 등록/수정 패널</summary>
+        <form id="entryForm">
+          <input id="playerId" placeholder="player_id (예: abc#1234)" required />
+          <input id="displayName" placeholder="닉네임" required />
+          <input id="tags" placeholder="태그 (쉼표구분)" />          <select id="entryVerdict" required>
+            <option value="suspected">핵의심</option>
+            <option value="teaming">티밍</option>
+            <option value="confirmed">핵확정</option>
+          </select>
+          <button type="submit">저장</button>
+        </form>
+      </details>
+    </section>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
+
+
+
+
+

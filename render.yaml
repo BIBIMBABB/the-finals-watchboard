@@ -1,0 +1,16 @@
+﻿services:
+  - type: web
+    name: the-finals-watchboard
+    runtime: node
+    plan: free
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: ADMIN_TOKEN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_TABLE
+        value: watch_entries
