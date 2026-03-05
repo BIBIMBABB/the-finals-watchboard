@@ -172,12 +172,12 @@ function parseApiTime(v) {
 
 
 function riskScore(entry) {
+  const floor = entry.cheatVerdict === "confirmed" ? 12 : entry.cheatVerdict === "teaming" ? 10 : 8;
+
   const seenDate = parseApiTime(getEntryObservedAt(entry));
   if (!seenDate) {
-    // Unknown play time should not stay high; keep conservative defaults.
-    if (entry.cheatVerdict === "confirmed") return 22;
-    if (entry.cheatVerdict === "teaming") return 18;
-    return 14;
+    // Unknown play time: keep near floor.
+    return floor + 2;
   }
 
   const seenMs = seenDate.getTime();
@@ -185,7 +185,12 @@ function riskScore(entry) {
   const sinceActualMin = Math.max(0, elapsedMin - RISK_TIME_OFFSET_MINUTES);
   const requeuePeakEnd = GAME_MAX_MINUTES + AVG_MATCHMAKING_MINUTES; // 32 + 7 = 39
 
-  let timingScore = 12;
+  // Hard cap: after 120 minutes, always floor.
+  if (sinceActualMin >= 120) {
+    return floor;
+  }
+
+  let timingScore = floor;
   if (sinceActualMin <= 10) {
     // 0m -> 10m: keep lower until likely requeue window opens.
     const t = Math.max(0, Math.min(1, sinceActualMin / 10));
@@ -194,24 +199,14 @@ function riskScore(entry) {
     // 10m -> 39m: linear rise 32 -> 88
     const t = (sinceActualMin - 10) / (requeuePeakEnd - 10);
     timingScore = 32 + t * 56;
-  } else if (sinceActualMin <= 120) {
-    // 39m -> 120m: linear decay 88 -> 56
+  } else {
+    // 39m -> 120m: linear decay 88 -> 40
     const t = (sinceActualMin - requeuePeakEnd) / (120 - requeuePeakEnd);
-    timingScore = 88 - t * 32;
-  } else if (sinceActualMin <= 360) {
-    // 120m -> 360m: linear decay 56 -> 28
-    const t = (sinceActualMin - 120) / (360 - 120);
-    timingScore = 56 - t * 28;
-  } else if (sinceActualMin <= 1440) {
-    // 6h -> 24h: linear decay 28 -> 12
-    const t = (sinceActualMin - 360) / (1440 - 360);
-    timingScore = 28 - t * 16;
+    timingScore = 88 - t * 48;
   }
 
   const verdictBonus = entry.cheatVerdict === "confirmed" ? 10 : entry.cheatVerdict === "teaming" ? 6 : 0;
   const score = timingScore + verdictBonus;
-
-  const floor = entry.cheatVerdict === "confirmed" ? 12 : entry.cheatVerdict === "teaming" ? 10 : 8;
   return Math.max(floor, Math.min(99, Math.round(score)));
 }
 
@@ -846,6 +841,7 @@ async function init() {
 }
 
 init();
+
 
 
 
