@@ -5,7 +5,7 @@ const APP_API_BASE = "/api";
 const API_BASE = "https://www.davg25.com/app/the-finals-leaderboard-tracker/api/vaiiya";
 const DEFAULT_SEASON = "s9";
 // History timestamp is already delayed in most cases, so keep compensation minimal.
-const RISK_TIME_OFFSET_MINUTES = 0;
+const RISK_TIME_OFFSET_MINUTES = 10;
 const AVG_MATCHMAKING_MINUTES = 7;
 const GAME_MIN_MINUTES = 25;
 const GAME_MAX_MINUTES = 32;
@@ -186,10 +186,13 @@ function riskScore(entry) {
   const requeuePeakEnd = GAME_MAX_MINUTES + AVG_MATCHMAKING_MINUTES; // 32 + 7 = 39
 
   let timingScore = 30;
-  if (sinceActualMin < GAME_MIN_MINUTES) {
-    timingScore = 25;
+  if (sinceActualMin < 10) {
+    timingScore = 40;
+  } else if (sinceActualMin < GAME_MIN_MINUTES) {
+    // Recently played players can quickly requeue and overlap.
+    timingScore = 62;
   } else if (sinceActualMin < GAME_MAX_MINUTES) {
-    timingScore = 50;
+    timingScore = 74;
   } else if (sinceActualMin <= requeuePeakEnd) {
     // Highest overlap window: likely to requeue into our next match.
     timingScore = 88;
@@ -841,6 +844,7 @@ async function init() {
 }
 
 init();
+
 
 
 
