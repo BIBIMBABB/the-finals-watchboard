@@ -163,9 +163,8 @@ function parseApiTime(v) {
   const s = String(v).trim();
   if (!s) return null;
 
-  const hasTz = /(?:Z|[+-]\d{2}:\d{2})$/i.test(s);
-  const normalized = hasTz ? s : `${s}Z`;
-  const d = new Date(normalized);
+  // Do not force UTC when timezone is missing. Respect runtime local parsing.
+  const d = new Date(s);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
@@ -175,9 +174,10 @@ function parseApiTime(v) {
 function riskScore(entry) {
   const seenDate = parseApiTime(getEntryObservedAt(entry));
   if (!seenDate) {
-    if (entry.cheatVerdict === "confirmed") return 35;
-    if (entry.cheatVerdict === "teaming") return 30;
-    return 25;
+    // Unknown play time should not stay high; keep conservative defaults.
+    if (entry.cheatVerdict === "confirmed") return 22;
+    if (entry.cheatVerdict === "teaming") return 18;
+    return 14;
   }
 
   const seenMs = seenDate.getTime();
@@ -185,31 +185,33 @@ function riskScore(entry) {
   const sinceActualMin = Math.max(0, elapsedMin - RISK_TIME_OFFSET_MINUTES);
   const requeuePeakEnd = GAME_MAX_MINUTES + AVG_MATCHMAKING_MINUTES; // 32 + 7 = 39
 
-  let timingScore = 30;
-  if (sinceActualMin < 10) {
-    timingScore = 40;
-  } else if (sinceActualMin < GAME_MIN_MINUTES) {
-    // Recently played players can quickly requeue and overlap.
-    timingScore = 62;
-  } else if (sinceActualMin < GAME_MAX_MINUTES) {
-    timingScore = 74;
+  let timingScore = 12;
+  if (sinceActualMin <= 10) {
+    // 0m -> 10m: keep lower until likely requeue window opens.
+    const t = Math.max(0, Math.min(1, sinceActualMin / 10));
+    timingScore = 22 + t * 10; // 22 -> 32
   } else if (sinceActualMin <= requeuePeakEnd) {
-    // Highest overlap window: likely to requeue into our next match.
-    timingScore = 88;
+    // 10m -> 39m: linear rise 32 -> 88
+    const t = (sinceActualMin - 10) / (requeuePeakEnd - 10);
+    timingScore = 32 + t * 56;
   } else if (sinceActualMin <= 120) {
-    // 39m -> 120m: smooth decay 82 -> 56
+    // 39m -> 120m: linear decay 88 -> 56
     const t = (sinceActualMin - requeuePeakEnd) / (120 - requeuePeakEnd);
-    timingScore = 82 - t * 26;
+    timingScore = 88 - t * 32;
   } else if (sinceActualMin <= 360) {
-    // 120m -> 360m: continue smooth decay 56 -> 30
+    // 120m -> 360m: linear decay 56 -> 28
     const t = (sinceActualMin - 120) / (360 - 120);
-    timingScore = 56 - t * 26;
+    timingScore = 56 - t * 28;
+  } else if (sinceActualMin <= 1440) {
+    // 6h -> 24h: linear decay 28 -> 12
+    const t = (sinceActualMin - 360) / (1440 - 360);
+    timingScore = 28 - t * 16;
   }
 
   const verdictBonus = entry.cheatVerdict === "confirmed" ? 10 : entry.cheatVerdict === "teaming" ? 6 : 0;
   const score = timingScore + verdictBonus;
 
-  const floor = entry.cheatVerdict === "confirmed" ? 20 : entry.cheatVerdict === "teaming" ? 18 : 15;
+  const floor = entry.cheatVerdict === "confirmed" ? 12 : entry.cheatVerdict === "teaming" ? 10 : 8;
   return Math.max(floor, Math.min(99, Math.round(score)));
 }
 
@@ -844,6 +846,12 @@ async function init() {
 }
 
 init();
+
+
+
+
+
+
 
 
 
