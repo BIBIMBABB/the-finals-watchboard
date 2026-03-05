@@ -4,7 +4,8 @@ const APP_API_BASE = "/api";
 
 const API_BASE = "https://www.davg25.com/app/the-finals-leaderboard-tracker/api/vaiiya";
 const DEFAULT_SEASON = "s9";
-const API_LAG_MINUTES = 30;
+// History timestamp is already delayed in most cases, so keep compensation minimal.
+const RISK_TIME_OFFSET_MINUTES = 0;
 const AVG_MATCHMAKING_MINUTES = 7;
 const GAME_MIN_MINUTES = 25;
 const GAME_MAX_MINUTES = 32;
@@ -178,38 +179,32 @@ function riskScore(entry) {
     if (entry.cheatVerdict === "teaming") return 30;
     return 25;
   }
+
   const seenMs = seenDate.getTime();
   const elapsedMin = Math.max(0, (Date.now() - seenMs) / 60_000);
-  const sinceActualMin = Math.max(0, elapsedMin - API_LAG_MINUTES);
-  const requeueStart = GAME_MIN_MINUTES + AVG_MATCHMAKING_MINUTES;
-  const requeuePeakEnd = GAME_MAX_MINUTES + AVG_MATCHMAKING_MINUTES;
+  const sinceActualMin = Math.max(0, elapsedMin - RISK_TIME_OFFSET_MINUTES);
+  const requeuePeakEnd = GAME_MAX_MINUTES + AVG_MATCHMAKING_MINUTES; // 32 + 7 = 39
 
-  let timingScore = 20;
+  let timingScore = 30;
   if (sinceActualMin < GAME_MIN_MINUTES) {
     timingScore = 25;
   } else if (sinceActualMin < GAME_MAX_MINUTES) {
     timingScore = 50;
-  } else if (sinceActualMin < requeueStart) {
-    timingScore = 70;
   } else if (sinceActualMin <= requeuePeakEnd) {
+    // Highest overlap window: likely to requeue into our next match.
     timingScore = 88;
-  } else if (sinceActualMin <= 75) {
-    timingScore = 72;
   } else if (sinceActualMin <= 120) {
-    timingScore = 56;
-  } else if (sinceActualMin <= 240) {
-    timingScore = 38;
+    // 39m -> 120m: smooth decay 82 -> 56
+    const t = (sinceActualMin - requeuePeakEnd) / (120 - requeuePeakEnd);
+    timingScore = 82 - t * 26;
+  } else if (sinceActualMin <= 360) {
+    // 120m -> 360m: continue smooth decay 56 -> 30
+    const t = (sinceActualMin - 120) / (360 - 120);
+    timingScore = 56 - t * 26;
   }
 
   const verdictBonus = entry.cheatVerdict === "confirmed" ? 10 : entry.cheatVerdict === "teaming" ? 6 : 0;
-  let score = timingScore + verdictBonus;
-
-  // Auto decay after 2 hours since observed play time.
-  if (sinceActualMin > 120) {
-    const overMin = sinceActualMin - 120;
-    const decay = Math.floor(overMin / 10); // -1 per 10 minutes
-    score -= decay;
-  }
+  const score = timingScore + verdictBonus;
 
   const floor = entry.cheatVerdict === "confirmed" ? 20 : entry.cheatVerdict === "teaming" ? 18 : 15;
   return Math.max(floor, Math.min(99, Math.round(score)));
@@ -846,6 +841,8 @@ async function init() {
 }
 
 init();
+
+
 
 
 
